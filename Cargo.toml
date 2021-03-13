@@ -1,0 +1,7 @@
+[workspace]
+
+members = [
+    "number-place-lib",
+    "number-place-pattern-generator",
+    "number-place-problem-generator",
+]
