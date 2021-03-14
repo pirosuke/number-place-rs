@@ -1,5 +1,5 @@
 [package]
-name = "number-place-problem-enerator"
+name = "number-place-problem-generator"
 version = "0.1.0"
 authors = ["pirosuke"]
 edition = "2018"
