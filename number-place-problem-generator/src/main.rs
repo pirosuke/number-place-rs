@@ -100,21 +100,22 @@ fn main() {
         
             let fit_lines = fit_template(&pattern_lines, template_lines);
         
-            if is_solvable(&fit_lines) {
-                let json = serde_json::to_string(&fit_lines).unwrap()
-                    .replace("[[", "[\n    [")
-                    .replace("],", "],\n    ")
-                    .replace("]]", "]\n]");
-    
-                let output_file_path = output_dir_path.join(format!("{}_{}", template_index, pattern_file_name));
-                let mut f = BufWriter::new(File::create(output_file_path).unwrap());
-                f.write_all(json.as_bytes()).unwrap();
-                f.flush().unwrap();
-                println!("resolved: {}_{}", template_index, pattern_file_name);
-                break;
-            } else {
-                println!("unsolvable: {}_{}", template_index, pattern_file_name);
-            }
+            let result_prefix = match is_solvable(&fit_lines) {
+                true => "solved",
+                _ => "unsolvable",
+            };
+
+            let json = serde_json::to_string(&fit_lines).unwrap()
+                .replace("[[", "[\n    [")
+                .replace("],", "],\n    ")
+                .replace("]]", "]\n]");
+
+            let output_file_path = output_dir_path.join(format!("{}_{}_{}", result_prefix, template_index, pattern_file_name));
+            let mut f = BufWriter::new(File::create(output_file_path).unwrap());
+            f.write_all(json.as_bytes()).unwrap();
+            f.flush().unwrap();
+
+            println!("{}: {}_{}", result_prefix, template_index, pattern_file_name);
         }
     }
 }
