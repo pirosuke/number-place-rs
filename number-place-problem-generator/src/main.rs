@@ -1,14 +1,20 @@
 extern crate number_place_lib;
 
-use rand::seq::SliceRandom;
 use std::fs::{read_dir, File};
 use std::path::{Path, PathBuf};
 use std::io::{BufReader, BufWriter, Write};
 use std::ffi::OsStr;
 
+use rand::seq::SliceRandom;
 use clap::{App, Arg};
 
-fn fit_template(pattern_lines: &Vec<Vec<i32>>, template_lines: Vec<Vec<i32>>) -> Vec<Vec<i32>> {
+struct Cell {
+    row_index: usize,
+    col_index: usize,
+    value: i32,
+}
+
+fn fit_template(pattern_lines: &Vec<Vec<i32>>, template_lines: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
     let mut fit_lines: Vec<Vec<i32>> = Vec::new();
     for row_zip in pattern_lines.iter().zip(template_lines.iter()) {
         let (pattern_row, template_row) = row_zip;
@@ -40,6 +46,31 @@ fn contains_zero(lines: &Vec<Vec<i32>>) -> bool {
 fn is_solvable(problem_lines: &Vec<Vec<i32>>) -> bool {
     let lines: Vec<Vec<i32>> = number_place_lib::solve_problem(problem_lines);
     !contains_zero(&lines)
+}
+
+fn add_blank_to_template(template_lines: &Vec<Vec<i32>>, number_of_blanks: usize) -> Vec<Vec<i32>> {
+    let mut cells: Vec<Cell> = Vec::new();
+    for (row_index, row) in template_lines.iter().enumerate() {
+        for (col_index, col) in row.iter().enumerate() {
+            cells.push(Cell{
+                row_index: row_index,
+                col_index: col_index,
+                value: *col,
+            });
+        }
+    }
+
+    let mut filled_cells: Vec<&Cell> = cells.iter()
+        .filter(|x| x.value == 1)
+        .collect();
+    let mut rng = rand::thread_rng();
+    filled_cells.shuffle(&mut rng);
+
+    let updated_lines: Vec<Vec<i32>> = filled_cells.iter()
+        .take(number_of_blanks)
+        .fold(template_lines.clone(), |mut acc, x| { acc[x.row_index][x.col_index] = 0; acc});
+
+    updated_lines
 }
 
 fn main() {
@@ -75,15 +106,10 @@ fn main() {
         .collect();
 
     let p_template_dir_path = cli_options.value_of("template_dir").unwrap();
-    let mut template_path_list: Vec<PathBuf> = read_dir(p_template_dir_path).unwrap()
-        .map(|res| res.unwrap().path())
-        .filter(|path| !path.is_dir() && path.extension().unwrap_or(OsStr::new("")) == "json")
-        .collect();
+    let base_template_path = Path::new(p_template_dir_path).join("0.json");
 
     let p_output_dir_path = cli_options.value_of("output_dir").unwrap();
     let output_dir_path = Path::new(p_output_dir_path);
-
-    let mut rng = rand::thread_rng();
 
     for pattern_path in pattern_path_list {
         let pattern_file = File::open(&pattern_path).unwrap();
@@ -91,31 +117,37 @@ fn main() {
         let pattern_lines: Vec<Vec<i32>> = serde_json::from_reader(pattern_reader).unwrap();
         let pattern_file_name = pattern_path.file_name().unwrap().to_str().unwrap();
 
-        template_path_list.shuffle(&mut rng);
-        for template_path in &template_path_list {
-            let template_file = File::open(&template_path).unwrap();
-            let template_reader = BufReader::new(template_file);
-            let template_lines: Vec<Vec<i32>> = serde_json::from_reader(template_reader).unwrap();
-            let template_index = template_path.file_name().unwrap().to_str().unwrap().replace(".json", "");
-        
-            let fit_lines = fit_template(&pattern_lines, template_lines);
-        
-            let result_prefix = match is_solvable(&fit_lines) {
-                true => "solved",
-                _ => "unsolvable",
-            };
+        let template_file = File::open(&base_template_path).unwrap();
+        let template_reader = BufReader::new(template_file);
+        let mut template_lines: Vec<Vec<i32>> = serde_json::from_reader(template_reader).unwrap();
 
-            let json = serde_json::to_string(&fit_lines).unwrap()
+        let mut number_of_blanks = 5;
+        template_lines = add_blank_to_template(&template_lines, 5);
+
+        let mut is_solved = true;
+        let mut prev_fit_lines: Vec<Vec<i32>> = Vec::new();
+        while is_solved {
+            number_of_blanks = number_of_blanks + 2;
+            template_lines = add_blank_to_template(&template_lines, 2);
+        
+            let fit_lines = fit_template(&pattern_lines, &template_lines);
+        
+            is_solved = is_solvable(&fit_lines);
+            prev_fit_lines = fit_lines.clone();
+        }
+
+        if !is_solved {
+            let json = serde_json::to_string(&prev_fit_lines).unwrap()
                 .replace("[[", "[\n    [")
                 .replace("],", "],\n    ")
                 .replace("]]", "]\n]");
 
-            let output_file_path = output_dir_path.join(format!("{}_{}_{}", result_prefix, template_index, pattern_file_name));
+            let output_file_path = output_dir_path.join(format!("{}_{}", number_of_blanks, pattern_file_name));
             let mut f = BufWriter::new(File::create(output_file_path).unwrap());
             f.write_all(json.as_bytes()).unwrap();
             f.flush().unwrap();
 
-            println!("{}: {}_{}", result_prefix, template_index, pattern_file_name);
+            println!("{}_{}", number_of_blanks, pattern_file_name);
         }
     }
 }
