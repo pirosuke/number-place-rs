@@ -4,7 +4,7 @@ use wasm_bindgen::prelude::*;
 use yew::prelude::*;
 
 mod components;
-use components::board;
+use components::game;
 
 struct Model {
 }
@@ -34,7 +34,7 @@ impl Component for Model {
                 <svg
                     id="number-place-game"
                     style="width:100%; height: 80%;" >
-                    <board::Board 
+                    <game::Game 
                         x=10
                         y=10 />
                 </svg>
