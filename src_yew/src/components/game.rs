@@ -1,8 +1,10 @@
-use yew::prelude::*;
-//use yew::services::console::ConsoleService;
-
 use crate::components::number_selector::{NumberSelector};
 use crate::components::board::{Board};
+
+use anyhow::Result;
+use yew::{format::{Json, Nothing}, prelude::*};
+use yew::services::fetch::{FetchService, FetchTask, Request, Response};
+use yew::services::console::ConsoleService;
 
 #[derive(Properties, Clone, PartialEq)]
 pub struct Props {
@@ -42,6 +44,16 @@ impl Numbers {
     
         cells
     }
+
+    fn remaining_cell_count(&self, entries: Vec<Vec<u32>>) -> usize {
+        entries.iter()
+            .fold(0, |sum, row| {
+                let zero_count: usize = row.iter()
+                    .filter(|&col| *col == 0)
+                    .count();
+                sum + zero_count
+            })
+    }
 }
 
 pub struct Game {
@@ -49,15 +61,19 @@ pub struct Game {
     props: Props,
     numbers: Numbers,
     target_cell: NumberCell,
+    fetch_task: Option<FetchTask>,
+    problem_index: usize,
 }
 
 pub enum Msg {
     CellClick(NumberCell),
     NumberClick(u32),
+    ResetClick(),
+    NewGameResponse(Result<Vec<Vec<u32>>, anyhow::Error>),
 }
 
 impl Game {
-    fn view_number(&self, cell: NumberCell) -> Html {
+    fn view_number(&self, cell: NumberCell, x: usize, y: usize) -> Html {
         let cl = cell.clone();
 
         let stroke_width = match self.target_cell.row == cell.row && self.target_cell.col == cell.col {
@@ -77,8 +93,8 @@ impl Game {
         html! {
             <>
                 <text
-                    x=cell.col * 40 + 12
-                    y=cell.row * 40 + 30
+                    x=x + cell.col * 40 + 12
+                    y=y + cell.row * 40 + 30
                     width="40"
                     height="40"
                     fill=text_color
@@ -88,8 +104,8 @@ impl Game {
                 </text>
                 <rect
                     onclick=self.link.callback(move |_| Msg::CellClick(cl.clone()))
-                    x=cell.col * 40
-                    y=cell.row * 40
+                    x=x + cell.col * 40
+                    y=y + cell.row * 40
                     width="40"
                     height="40"
                     stroke=stroke
@@ -99,6 +115,13 @@ impl Game {
             </>
         }
     }
+
+    fn next_problem_index(&mut self) {
+        self.problem_index = match self.problem_index {
+            9 => 0,
+            _ => self.problem_index + 1
+        };
+    }
 }
 
 impl Component for Game {
@@ -107,20 +130,24 @@ impl Component for Game {
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let hints = vec![
-            vec![0,0,8,2,0,0,5,0,0],
-            vec![1,0,5,0,6,0,2,3,4],
-            vec![3,0,0,0,7,5,9,0,0],
-            vec![0,8,6,4,0,0,0,0,0],
-            vec![4,1,0,0,0,0,7,5,0],
-            vec![5,2,0,0,0,1,8,4,6],
-            vec![0,0,0,0,0,0,4,7,2],
-            vec![0,5,0,0,0,2,6,8,0],
-            vec![0,0,1,0,8,0,3,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
+            vec![0,0,0,0,0,0,0,0,0],
         ];
         let numbers = Numbers{
             hints: hints.clone(),
             entries: hints.clone(),
         };
+
+        //let req: Request<()> = Request::default();
+        //ConsoleService::info(format!("Request URI {}", req.uri()).as_str());
+        link.send_message(Msg::ResetClick());
 
         Self {
             link,
@@ -132,6 +159,8 @@ impl Component for Game {
                 col: 99,
                 is_hint: false,
             },
+            fetch_task: None,
+            problem_index: 0,
         }
     }
 
@@ -147,6 +176,33 @@ impl Component for Game {
                 //ConsoleService::info(format!("Number Click: {}", &num).as_str());
 
                 self.numbers.entries[self.target_cell.row][self.target_cell.col] = num;
+            },
+            Msg::ResetClick() => {
+                //ConsoleService::info(format!("ResetClick").as_str());
+                let req = Request::get(format!("/number-place-wasm/problems/{}.json", self.problem_index))
+                    .body(Nothing)
+                    .expect("Could not build request.");
+                let callback = self.link
+                    .callback(|response: Response<Json<Result<Vec<Vec<u32>>, anyhow::Error>>>| {
+                        let Json(data) = response.into_body();
+                        Msg::NewGameResponse(data)
+                    });
+                let task = FetchService::fetch(req, callback).expect("failed to start request");
+                self.fetch_task = Some(task);
+                self.next_problem_index();
+            },
+            Msg::NewGameResponse(res) => {
+                //ConsoleService::info(format!("NewGameResponse").as_str());
+                match res {
+                    Ok(hints) => {
+                        self.numbers.hints = hints.clone();
+                        self.numbers.entries = hints.clone();
+                    }
+                    Err(error) => {
+                        ConsoleService::info(format!("New game error: {}", error).as_str());
+                    }
+                }
+                self.fetch_task = None;
             },
         }
         true
@@ -167,11 +223,59 @@ impl Component for Game {
             .callback(|num: u32| Msg::NumberClick(num));
         let transform = format!("translate({}, {})", self.props.x, self.props.y);
 
+        let hint_zero_count = self.numbers.remaining_cell_count(self.numbers.hints.clone());
+        let entry_zero_count = self.numbers.remaining_cell_count(self.numbers.entries.clone());
+
         html! {
             <g transform=transform>
-                <Board x=0 y=0 />
-                { for self.numbers.number_cells().iter().map(|c| self.view_number(c.clone())) }
-                <NumberSelector x=0 y=370 on_number_select=handle_number_selector.clone() />
+                <text
+                    x=110
+                    y=20
+                    fill="#000"
+                    stroke="#000"
+                    text-anchor="middle"
+                    dominant-baseline="central"
+                    font-size="20">{ format!("{}/{}", entry_zero_count, hint_zero_count) }</text>
+                <rect
+                    x=0
+                    y=0
+                    width="220"
+                    height="40"
+                    stroke="#000"
+                    stroke-width="1"
+                    fill-opacity="0"
+                    fill="#fff" />
+
+                <rect
+                    x=230
+                    y=0
+                    rx=5
+                    ry=5
+                    width="130"
+                    height="40"
+                    stroke="#c00"
+                    stroke-width="1"
+                    fill="#fcc" />
+                <text
+                    x=295
+                    y=20
+                    fill="#000"
+                    stroke="#000"
+                    text-anchor="middle"
+                    dominant-baseline="central"
+                    font-size="15">{ "NEW GAME" }</text>
+                <rect
+                    onclick=self.link.callback(|_| Msg::ResetClick())
+                    x=230
+                    y=0
+                    width="130"
+                    height="40"
+                    stroke-opacity="0"
+                    fill-opacity="0" />
+
+                <Board x=0 y=50 />
+                { for self.numbers.number_cells().iter().map(|c| self.view_number(c.clone(), 0, 50)) }
+                <NumberSelector x=0 y=420 on_number_select=handle_number_selector.clone() />
             </g>
         }
     }
