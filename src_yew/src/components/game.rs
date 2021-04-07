@@ -5,6 +5,7 @@ use anyhow::Result;
 use yew::{format::{Json, Nothing}, prelude::*};
 use yew::services::fetch::{FetchService, FetchTask, Request, Response};
 use yew::services::console::ConsoleService;
+use yew::utils::document;
 
 #[derive(Properties, Clone, PartialEq)]
 pub struct Props {
@@ -145,8 +146,6 @@ impl Component for Game {
             entries: hints.clone(),
         };
 
-        //let req: Request<()> = Request::default();
-        //ConsoleService::info(format!("Request URI {}", req.uri()).as_str());
         link.send_message(Msg::ResetClick());
 
         Self {
@@ -178,8 +177,9 @@ impl Component for Game {
                 self.numbers.entries[self.target_cell.row][self.target_cell.col] = num;
             },
             Msg::ResetClick() => {
-                //ConsoleService::info(format!("ResetClick").as_str());
-                let req = Request::get(format!("/number-place-wasm/problems/{}.json", self.problem_index))
+                let url_path = document().location().unwrap().pathname().unwrap().replace("/index.html", "");
+                //ConsoleService::info(format!("ResetClick: {}", url_path).as_str());
+                let req = Request::get(format!("{}/problems/{}.json", url_path, self.problem_index))
                     .body(Nothing)
                     .expect("Could not build request.");
                 let callback = self.link
@@ -235,7 +235,7 @@ impl Component for Game {
                     stroke="#000"
                     text-anchor="middle"
                     dominant-baseline="central"
-                    font-size="20">{ format!("{}/{}", entry_zero_count, hint_zero_count) }</text>
+                    font-size="20">{ format!("#{} {}/{}", self.problem_index + 1, entry_zero_count, hint_zero_count) }</text>
                 <rect
                     x=0
                     y=0
