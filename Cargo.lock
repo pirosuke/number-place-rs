@@ -601,6 +601,7 @@ name = "src_yew"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "number-place-lib",
  "serde",
  "serde_json",
  "wasm-bindgen",

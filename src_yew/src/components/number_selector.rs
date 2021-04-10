@@ -4,23 +4,23 @@ use yew::prelude::*;
 pub struct Props {
     pub x: u32,
     pub y: u32,
-    pub on_number_select: Callback<u32>,
+    pub on_number_select: Callback<i32>,
 }
 
 pub struct NumberSelector {
     link: ComponentLink<Self>,
     props: Props,
-    target_number: u32,
+    target_number: i32,
 }
 
 pub enum Msg {
-    NumberClick(u32),
+    NumberClick(i32),
 }
 
 impl NumberSelector {
-    fn view_number_selector(&self, index: &u32) -> Html {
+    fn view_number_selector(&self, index: &i32) -> Html {
         let point = index * 40 - 40;
-        let num = index.clone() as u32;
+        let num = index.clone() as i32;
         let fill = match self.target_number == *index {
             true => "#ccf",
             false => "#fff",

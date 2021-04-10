@@ -309,3 +309,34 @@ pub fn solve_problem(problem_lines: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
     
     lines
 }
+
+pub fn check_solved(lines: &Vec<Vec<i32>>) -> bool {
+    let mut is_solved = true;
+    'outer: for (row_index, row) in lines.iter().enumerate() {
+        let row_values: HashSet<i32> = row.into_iter()
+            .map(|x| *x)
+            .collect();
+        if row_values.len() < 9 {
+            is_solved = false;
+            break;
+        }
+        for (col_index, _) in row.iter().enumerate() {
+            let col_values: HashSet<i32> = col_values(lines, col_index).into_iter().collect();
+            if col_values.len() < 9 {
+                is_solved = false;
+                break 'outer;
+            }
+            let block_values: HashSet<i32> = block_values(lines, row_index, col_index).into_iter().collect();
+            if block_values.len() < 9 {
+                is_solved = false;
+                break 'outer;
+            }
+        }
+    }
+
+    if count_zero(lines) != 0 {
+        is_solved = false;
+    }
+
+    is_solved
+}

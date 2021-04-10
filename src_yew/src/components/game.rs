@@ -1,3 +1,5 @@
+extern crate number_place_lib;
+
 use crate::components::number_selector::{NumberSelector};
 use crate::components::board::{Board};
 
@@ -22,8 +24,8 @@ pub struct NumberCell {
 }
 
 struct Numbers {
-    entries: Vec<Vec<u32>>,
-    hints: Vec<Vec<u32>>,
+    entries: Vec<Vec<i32>>,
+    hints: Vec<Vec<i32>>,
 }
 
 impl Numbers {
@@ -46,7 +48,7 @@ impl Numbers {
         cells
     }
 
-    fn remaining_cell_count(&self, entries: Vec<Vec<u32>>) -> usize {
+    fn remaining_cell_count(&self, entries: Vec<Vec<i32>>) -> usize {
         entries.iter()
             .fold(0, |sum, row| {
                 let zero_count: usize = row.iter()
@@ -54,6 +56,10 @@ impl Numbers {
                     .count();
                 sum + zero_count
             })
+    }
+
+    fn are_entries_solved(&self) -> bool {
+        number_place_lib::check_solved(&self.entries)
     }
 }
 
@@ -68,9 +74,9 @@ pub struct Game {
 
 pub enum Msg {
     CellClick(NumberCell),
-    NumberClick(u32),
+    NumberClick(i32),
     ResetClick(),
-    NewGameResponse(Result<Vec<Vec<u32>>, anyhow::Error>),
+    NewGameResponse(Result<Vec<Vec<i32>>, anyhow::Error>),
 }
 
 impl Game {
@@ -183,7 +189,7 @@ impl Component for Game {
                     .body(Nothing)
                     .expect("Could not build request.");
                 let callback = self.link
-                    .callback(|response: Response<Json<Result<Vec<Vec<u32>>, anyhow::Error>>>| {
+                    .callback(|response: Response<Json<Result<Vec<Vec<i32>>, anyhow::Error>>>| {
                         let Json(data) = response.into_body();
                         Msg::NewGameResponse(data)
                     });
@@ -220,11 +226,16 @@ impl Component for Game {
     fn view(&self) -> Html {
         let handle_number_selector = self
             .link
-            .callback(|num: u32| Msg::NumberClick(num));
+            .callback(|num: i32| Msg::NumberClick(num));
         let transform = format!("translate({}, {})", self.props.x, self.props.y);
 
         let hint_zero_count = self.numbers.remaining_cell_count(self.numbers.hints.clone());
         let entry_zero_count = self.numbers.remaining_cell_count(self.numbers.entries.clone());
+
+        let solved_opacity = match self.numbers.are_entries_solved() {
+            true => "1.0",
+            false => "0.0",
+        };
 
         html! {
             <g transform=transform>
@@ -235,7 +246,15 @@ impl Component for Game {
                     stroke="#000"
                     text-anchor="middle"
                     dominant-baseline="central"
-                    font-size="20">{ format!("#{} {}/{}", self.problem_index + 1, entry_zero_count, hint_zero_count) }</text>
+                    font-size="20">{ format!("#{} {}/{}", self.problem_index, entry_zero_count, hint_zero_count) }</text>
+                <circle
+                    r="10"
+                    cx="200"
+                    cy="20"
+                    fill-opacity="0"
+                    stroke-opacity=solved_opacity
+                    stroke="#0c0"
+                    stroke-width="4" />
                 <rect
                     x=0
                     y=0
@@ -263,7 +282,7 @@ impl Component for Game {
                     stroke="#000"
                     text-anchor="middle"
                     dominant-baseline="central"
-                    font-size="15">{ "NEW GAME" }</text>
+                    font-size="15">{ "NEXT GAME" }</text>
                 <rect
                     onclick=self.link.callback(|_| Msg::ResetClick())
                     x=230
