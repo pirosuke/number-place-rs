@@ -83,13 +83,6 @@ fn main() {
             .required(true)
             .takes_value(true)
         )
-        .arg(Arg::with_name("template_dir")
-            .help("Template JSON Dir Path")
-            .long("template")
-            .short("t")
-            .required(true)
-            .takes_value(true)
-        )
         .arg(Arg::with_name("output_dir")
             .help("Output Dir Path")
             .long("output")
@@ -105,8 +98,17 @@ fn main() {
         .filter(|path| !path.is_dir() && path.extension().unwrap_or(OsStr::new("")) == "json")
         .collect();
 
-    let p_template_dir_path = cli_options.value_of("template_dir").unwrap();
-    let base_template_path = Path::new(p_template_dir_path).join("0.json");
+    let template_lines = vec![
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+        vec![1,1,1,1,1,1,1,1,1],
+    ];
 
     let p_output_dir_path = cli_options.value_of("output_dir").unwrap();
     let output_dir_path = Path::new(p_output_dir_path);
@@ -117,37 +119,33 @@ fn main() {
         let pattern_lines: Vec<Vec<i32>> = serde_json::from_reader(pattern_reader).unwrap();
         let pattern_file_name = pattern_path.file_name().unwrap().to_str().unwrap();
 
-        let template_file = File::open(&base_template_path).unwrap();
-        let template_reader = BufReader::new(template_file);
-        let mut template_lines: Vec<Vec<i32>> = serde_json::from_reader(template_reader).unwrap();
+        let mut hint_lines: Vec<Vec<i32>> = template_lines.clone();
 
         let mut number_of_blanks = 5;
-        template_lines = add_blank_to_template(&template_lines, 5);
+        hint_lines = add_blank_to_template(&hint_lines, 5);
 
         let mut is_solved = true;
         let mut prev_fit_lines: Vec<Vec<i32>> = Vec::new();
         while is_solved {
             number_of_blanks = number_of_blanks + 2;
-            template_lines = add_blank_to_template(&template_lines, 2);
+            hint_lines = add_blank_to_template(&hint_lines, 2);
         
-            let fit_lines = fit_template(&pattern_lines, &template_lines);
+            let fit_lines = fit_template(&pattern_lines, &hint_lines);
         
             is_solved = is_solvable(&fit_lines);
             prev_fit_lines = fit_lines.clone();
         }
 
-        if !is_solved {
-            let json = serde_json::to_string(&prev_fit_lines).unwrap()
-                .replace("[[", "[\n    [")
-                .replace("],", "],\n    ")
-                .replace("]]", "]\n]");
+        let json = serde_json::to_string(&prev_fit_lines).unwrap()
+            .replace("[[", "[\n    [")
+            .replace("],", "],\n    ")
+            .replace("]]", "]\n]");
 
-            let output_file_path = output_dir_path.join(format!("{}_{}", number_of_blanks, pattern_file_name));
-            let mut f = BufWriter::new(File::create(output_file_path).unwrap());
-            f.write_all(json.as_bytes()).unwrap();
-            f.flush().unwrap();
+        let output_file_path = output_dir_path.join(pattern_file_name);
+        let mut f = BufWriter::new(File::create(output_file_path).unwrap());
+        f.write_all(json.as_bytes()).unwrap();
+        f.flush().unwrap();
 
-            println!("{}_{}", number_of_blanks, pattern_file_name);
-        }
+        println!("{}_{}", number_of_blanks, pattern_file_name);
     }
 }

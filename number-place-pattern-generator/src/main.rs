@@ -2,7 +2,7 @@ extern crate number_place_lib;
 
 use rand::seq::SliceRandom;
 use clap::{App, Arg};
-use chrono::prelude::*;
+//use chrono::prelude::*;
 use std::path::Path;
 use std::fs::File;
 use std::io::{BufWriter, Write};
@@ -136,7 +136,7 @@ fn main() {
     let p_pattern_output_dir_path = cli_options.value_of("output_dir").unwrap();
     let p_num_of_patterns = cli_options.value_of("num").unwrap();
 
-    let ts = Local::now().format("%Y%m%d");
+    //let ts = Local::now().format("%Y%m%d");
     let output_dir_path = Path::new(p_pattern_output_dir_path);
 
     let num_of_patterns = p_num_of_patterns.parse().unwrap();
@@ -150,7 +150,7 @@ fn main() {
                 .replace("],", "],\n    ")
                 .replace("]]", "]\n]");
 
-            let output_file_path = output_dir_path.join(format!("{}_{}.json", ts.to_string(), num_outputted));
+            let output_file_path = output_dir_path.join(format!("{}.json", num_outputted));
             let mut f = BufWriter::new(File::create(output_file_path).unwrap());
             f.write_all(json.as_bytes()).unwrap();
             f.flush().unwrap();
