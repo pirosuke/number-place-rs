@@ -15,7 +15,7 @@ pub enum Msg {
 }
 
 impl Board {
-    fn view_line(&self, index: &u32) -> Html {
+    fn view_line(&self, index: u32) -> Html {
         let stroke_width = match index % 3 {
             0 => 3,
             _ => 1,
@@ -80,7 +80,7 @@ impl Component for Board {
                     stroke-width="3"
                     fill-opacity="0"
                     fill="#fff" />
-                { for vec![1,2,3,4,5,6,7,8,9].iter().map(|e| self.view_line(e)) }
+                { for (1..10).map(|e: u32| self.view_line(e)) }
             </g>
         }
     }

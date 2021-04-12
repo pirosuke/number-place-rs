@@ -18,12 +18,13 @@ pub enum Msg {
 }
 
 impl NumberSelector {
-    fn view_number_selector(&self, index: &i32) -> Html {
+    fn view_number_selector(&self, index: i32) -> Html {
         let point = index * 40 - 40;
         let num = index.clone() as i32;
-        let fill = match self.target_number == *index {
-            true => "#ccf",
-            false => "#fff",
+        let fill = if self.target_number == index {
+            "#ccf"
+        } else {
+            "#fff"
         };
         html! {
             <>
@@ -92,7 +93,7 @@ impl Component for NumberSelector {
 
         html! {
             <g transform=transform>
-                { for vec![1,2,3,4,5,6,7,8,9].iter().map(|e| self.view_number_selector(e)) }
+                { for (1..10).map(|e: i32| self.view_number_selector(e)) }
             </g>
         }
     }

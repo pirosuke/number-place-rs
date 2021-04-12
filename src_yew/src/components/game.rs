@@ -83,18 +83,21 @@ impl Game {
     fn view_number(&self, cell: NumberCell, x: usize, y: usize) -> Html {
         let cl = cell.clone();
 
-        let stroke_width = match self.target_cell.row == cell.row && self.target_cell.col == cell.col {
-            true => 5,
-            false => 1,
+        let stroke_width = if self.target_cell.row == cell.row && self.target_cell.col == cell.col {
+            5
+        } else {
+            1
         };
-        let stroke = match self.target_cell.row == cell.row && self.target_cell.col == cell.col {
-            true => "#F66",
-            false => "#000",
+        let stroke = if self.target_cell.row == cell.row && self.target_cell.col == cell.col {
+            "#F66"
+        } else {
+            "#000"
         };
 
-        let text_color = match cell.is_hint {
-            true => "#00c",
-            false => "#000",
+        let text_color = if cell.is_hint {
+            "#00c"
+        } else {
+            "#000"
         };
 
         html! {
@@ -232,9 +235,10 @@ impl Component for Game {
         let hint_zero_count = self.numbers.remaining_cell_count(self.numbers.hints.clone());
         let entry_zero_count = self.numbers.remaining_cell_count(self.numbers.entries.clone());
 
-        let solved_opacity = match self.numbers.are_entries_solved() {
-            true => "1.0",
-            false => "0.0",
+        let solved_opacity = if self.numbers.are_entries_solved() {
+            "1.0"
+        } else {
+            "0.0"
         };
 
         html! {
